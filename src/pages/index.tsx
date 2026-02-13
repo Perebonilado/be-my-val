@@ -188,20 +188,20 @@ export default function Home() {
         {/* REASON SLIDES */}
         {isReason && (
           <div
-            className={`flex w-full max-w-lg flex-col items-center px-8 ${showContent ? "animate-fade-in" : "animate-fade-out"}`}
+            className={`flex h-screen w-full max-w-lg flex-col items-center justify-center px-8 py-12 ${showContent ? "animate-fade-in" : "animate-fade-out"}`}
             onClick={goToNext}
             style={{ cursor: "pointer" }}
           >
             <span
-              className="animate-slide-up mb-6 text-6xl font-extralight opacity-0"
+              className="animate-slide-up mb-3 text-5xl font-extralight opacity-0"
               style={{ color: "#e8a0bf", animationDelay: "0.1s" }}
             >
               {SLIDES.reasons[reasonIndex].number}
             </span>
 
             <div
-              className="animate-scale-in relative mb-8 aspect-[4/5] w-full max-w-xs overflow-hidden rounded-2xl opacity-0 shadow-lg"
-              style={{ animationDelay: "0.3s" }}
+              className="animate-scale-in relative mb-4 w-full max-w-[240px] shrink-0 overflow-hidden rounded-2xl opacity-0 shadow-lg"
+              style={{ animationDelay: "0.3s", aspectRatio: "3/4" }}
             >
               <img
                 src={SLIDES.reasons[reasonIndex].photo}
@@ -221,14 +221,14 @@ export default function Home() {
             </div>
 
             <p
-              className="animate-slide-up max-w-sm text-center text-xl font-light leading-relaxed opacity-0"
+              className="animate-slide-up max-w-sm text-center text-lg font-light leading-relaxed opacity-0"
               style={{ color: "#2d2d2d", animationDelay: "0.6s" }}
             >
               {SLIDES.reasons[reasonIndex].reason}
             </p>
 
             <p
-              className="animate-fade-in mt-8 text-xs tracking-widest uppercase opacity-0"
+              className="animate-fade-in mt-4 text-xs tracking-widest uppercase opacity-0"
               style={{ color: "#e8a0bf", animationDelay: "1.2s" }}
             >
               tap to continue
