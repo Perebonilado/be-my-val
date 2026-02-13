@@ -1,5 +1,5 @@
 import { Geist } from "next/font/google";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Head from "next/head";
 
 const geistSans = Geist({
@@ -43,6 +43,12 @@ const SLIDES = {
       reason: "You are my favorite person in the entire world",
       photo: "/photos/3.jpg",
       caption: "My favorite view",
+    },
+    {
+      number: "04",
+      reason: "And just like the song says, you are my only girl",
+      photo: "/photos/4.jpg",
+      caption: "My one and only",
     },
   ],
   ask: {
@@ -109,6 +115,18 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showContent, setShowContent] = useState(true);
+  const [showNoMessage, setShowNoMessage] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio("/music.mp3");
+    audio.loop = true;
+    audio.volume = 0.4;
+    audioRef.current = audio;
+    return () => {
+      audio.pause();
+    };
+  }, []);
 
   const totalSlides = 2 + SLIDES.reasons.length; // intro + reasons + ask (finale is separate)
 
@@ -116,6 +134,11 @@ export default function Home() {
     if (isTransitioning) return;
     const maxSlide = SLIDES.reasons.length + 2; // intro(0) + 3 reasons(1,2,3) + ask(4) + finale(5)
     if (currentSlide >= maxSlide) return;
+
+    // Start music on first interaction
+    if (audioRef.current && audioRef.current.paused) {
+      audioRef.current.play().catch(() => {});
+    }
 
     setIsTransitioning(true);
     setShowContent(false);
@@ -253,17 +276,39 @@ export default function Home() {
             >
               {SLIDES.ask.question}
             </h1>
-            <button
-              className="animate-scale-in rounded-full px-12 py-4 text-lg font-medium tracking-wide text-white opacity-0 transition-transform hover:scale-105 active:scale-95"
-              style={{
-                background: "linear-gradient(135deg, #e8a0bf, #d4526e)",
-                animationDelay: "1.2s",
-                boxShadow: "0 8px 32px rgba(212, 82, 110, 0.3)",
-              }}
-              onClick={goToNext}
+            <div
+              className="animate-scale-in flex gap-4 opacity-0"
+              style={{ animationDelay: "1.2s" }}
             >
-              Yes!
-            </button>
+              <button
+                className="rounded-full px-12 py-4 text-lg font-medium tracking-wide text-white transition-transform hover:scale-105 active:scale-95"
+                style={{
+                  background: "linear-gradient(135deg, #e8a0bf, #d4526e)",
+                  boxShadow: "0 8px 32px rgba(212, 82, 110, 0.3)",
+                }}
+                onClick={goToNext}
+              >
+                Yes!
+              </button>
+              <button
+                className="rounded-full px-8 py-4 text-lg font-medium tracking-wide transition-transform hover:scale-105 active:scale-95"
+                style={{
+                  color: "#d4526e",
+                  border: "1px solid #e8a0bf",
+                }}
+                onClick={() => setShowNoMessage(true)}
+              >
+                No
+              </button>
+            </div>
+            {showNoMessage && (
+              <p
+                className="animate-fade-in mt-6 text-base font-light"
+                style={{ color: "#d4526e" }}
+              >
+                I'm sorry but the only option is yes 😌
+              </p>
+            )}
           </div>
         )}
 
@@ -292,16 +337,14 @@ export default function Home() {
               {SLIDES.reasons.map((reason, i) => (
                 <div
                   key={i}
-                  className={`animate-scale-in overflow-hidden rounded-2xl opacity-0 shadow-md ${
-                    i === 0 ? "col-span-2 aspect-[16/9]" : "aspect-square"
-                  }`}
+                  className="animate-scale-in aspect-square overflow-hidden rounded-2xl opacity-0 shadow-md"
                   style={{ animationDelay: `${0.8 + i * 0.2}s` }}
                 >
                   <img
                     src={reason.photo}
                     alt=""
                     className="h-full w-full object-cover"
-                    style={i === 0 ? { objectPosition: "center 20%" } : undefined}
+                    style={{ objectPosition: "center 20%" }}
                   />
                 </div>
               ))}
