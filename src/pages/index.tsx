@@ -1,5 +1,6 @@
 import { Geist } from "next/font/google";
 import { useState, useCallback, useEffect, useRef } from "react";
+import Image from "next/image";
 import Head from "next/head";
 
 const geistSans = Geist({
@@ -61,6 +62,9 @@ const SLIDES = {
   },
 };
 
+// Slide indices: 0 = intro, 1..N = reasons, N+1 = ask, N+2 = finale
+const TOTAL = SLIDES.reasons.length + 3;
+
 function FloatingHearts() {
   const [hearts, setHearts] = useState<{ id: number; left: number; delay: number; size: number }[]>([]);
 
@@ -113,49 +117,34 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [showContent, setShowContent] = useState(true);
   const [showNoMessage, setShowNoMessage] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const transitioning = useRef(false);
 
   useEffect(() => {
     const audio = new Audio("/music.mp3");
     audio.loop = true;
     audio.volume = 0.4;
     audioRef.current = audio;
-    return () => {
-      audio.pause();
-    };
+    return () => { audio.pause(); };
   }, []);
 
-  const totalSlides = 2 + SLIDES.reasons.length; // intro + reasons + ask (finale is separate)
-
   const goToNext = useCallback(() => {
-    if (isTransitioning) return;
-    const maxSlide = SLIDES.reasons.length + 2; // intro(0) + 3 reasons(1,2,3) + ask(4) + finale(5)
-    if (currentSlide >= maxSlide) return;
+    if (transitioning.current) return;
+    if (currentSlide >= TOTAL - 1) return;
 
-    // Start music on first interaction
     if (audioRef.current && audioRef.current.paused) {
       audioRef.current.play().catch(() => {});
     }
 
-    setIsTransitioning(true);
-    setShowContent(false);
+    transitioning.current = true;
+    setCurrentSlide((prev) => prev + 1);
+    setTimeout(() => { transitioning.current = false; }, 600);
+  }, [currentSlide]);
 
-    setTimeout(() => {
-      setCurrentSlide((prev) => prev + 1);
-      setShowContent(true);
-      setIsTransitioning(false);
-    }, 500);
-  }, [currentSlide, isTransitioning]);
-
-  const isIntro = currentSlide === 0;
-  const isReason = currentSlide >= 1 && currentSlide <= SLIDES.reasons.length;
-  const isAsk = currentSlide === SLIDES.reasons.length + 1;
-  const isFinale = currentSlide === SLIDES.reasons.length + 2;
-
-  const reasonIndex = currentSlide - 1;
+  const askIndex = SLIDES.reasons.length + 1;
+  const finaleIndex = SLIDES.reasons.length + 2;
+  const isReasonOrAsk = currentSlide >= 1 && currentSlide <= askIndex;
 
   return (
     <>
@@ -164,24 +153,27 @@ export default function Home() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <div
-        className={`${geistSans.className} relative flex min-h-screen select-none items-center justify-center overflow-hidden`}
-        style={{ background: isFinale ? "#fff5f7" : "#fffaf9" }}
+        className={`${geistSans.className} relative h-screen w-screen select-none overflow-hidden`}
+        style={{ background: currentSlide === finaleIndex ? "#fff5f7" : "#fffaf9" }}
       >
-        {/* Progress dots - show on reason slides and ask */}
-        {(isReason || isAsk) && !isFinale && (
+        {/* Progress dots */}
+        {isReasonOrAsk && (
           <ProgressDots
             current={currentSlide - 1}
             total={SLIDES.reasons.length + 1}
           />
         )}
 
-        {/* INTRO SLIDE */}
-        {isIntro && (
-          <div
-            className={`flex flex-col items-center px-8 text-center ${showContent ? "animate-fade-in" : "animate-fade-out"}`}
-            onClick={goToNext}
-            style={{ cursor: "pointer" }}
-          >
+        {/* === INTRO SLIDE (index 0) === */}
+        <div
+          className="absolute inset-0 flex items-center justify-center transition-opacity duration-700 ease-in-out"
+          style={{
+            opacity: currentSlide === 0 ? 1 : 0,
+            pointerEvents: currentSlide === 0 ? "auto" : "none",
+          }}
+          onClick={currentSlide === 0 ? goToNext : undefined}
+        >
+          <div className="flex flex-col items-center px-8 text-center">
             <p
               className="animate-fade-in mb-4 text-lg tracking-wide opacity-0"
               style={{ color: "#e8a0bf", animationDelay: "0.2s" }}
@@ -206,80 +198,94 @@ export default function Home() {
               </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* REASON SLIDES */}
-        {isReason && (
-          <div
-            className={`flex h-screen w-full max-w-lg flex-col items-center justify-center px-8 py-12 ${showContent ? "animate-fade-in" : "animate-fade-out"}`}
-            onClick={goToNext}
-            style={{ cursor: "pointer" }}
-          >
-            <span
-              className="animate-slide-up mb-3 text-5xl font-extralight opacity-0"
-              style={{ color: "#e8a0bf", animationDelay: "0.1s" }}
-            >
-              {SLIDES.reasons[reasonIndex].number}
-            </span>
-
+        {/* === REASON SLIDES (indices 1..N) - ALL always mounted === */}
+        {SLIDES.reasons.map((reason, i) => {
+          const slideIndex = i + 1;
+          const isActive = currentSlide === slideIndex;
+          return (
             <div
-              className="animate-scale-in relative mb-4 w-full max-w-[240px] shrink-0 overflow-hidden rounded-2xl opacity-0 shadow-lg"
-              style={{ animationDelay: "0.3s", aspectRatio: "3/4" }}
+              key={i}
+              className="absolute inset-0 flex items-center justify-center transition-opacity duration-700 ease-in-out"
+              style={{
+                opacity: isActive ? 1 : 0,
+                pointerEvents: isActive ? "auto" : "none",
+              }}
+              onClick={isActive ? goToNext : undefined}
             >
-              <img
-                src={SLIDES.reasons[reasonIndex].photo}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-              <div
-                className="absolute inset-x-0 bottom-0 px-4 py-3"
-                style={{
-                  background: "linear-gradient(transparent, rgba(0,0,0,0.4))",
-                }}
-              >
-                <p className="text-sm text-white/90">
-                  {SLIDES.reasons[reasonIndex].caption}
+              <div className="flex h-screen w-full max-w-lg flex-col items-center justify-center px-8 py-12">
+                <span
+                  className="mb-3 text-5xl font-extralight"
+                  style={{ color: "#e8a0bf" }}
+                >
+                  {reason.number}
+                </span>
+
+                <div
+                  className="relative mb-4 w-full max-w-[240px] shrink-0 overflow-hidden rounded-2xl shadow-lg"
+                  style={{ aspectRatio: "3/4" }}
+                >
+                  <Image
+                    src={reason.photo}
+                    alt=""
+                    fill
+                    sizes="240px"
+                    className="object-cover"
+                    priority
+                  />
+                  <div
+                    className="absolute inset-x-0 bottom-0 px-4 py-3"
+                    style={{
+                      background: "linear-gradient(transparent, rgba(0,0,0,0.4))",
+                    }}
+                  >
+                    <p className="text-sm text-white/90">
+                      {reason.caption}
+                    </p>
+                  </div>
+                </div>
+
+                <p
+                  className="max-w-sm text-center text-lg font-light leading-relaxed"
+                  style={{ color: "#2d2d2d" }}
+                >
+                  {reason.reason}
+                </p>
+
+                <p
+                  className="mt-4 text-xs tracking-widest uppercase"
+                  style={{ color: "#e8a0bf" }}
+                >
+                  tap to continue
                 </p>
               </div>
             </div>
+          );
+        })}
 
+        {/* === ASK SLIDE === */}
+        <div
+          className="absolute inset-0 flex items-center justify-center transition-opacity duration-700 ease-in-out"
+          style={{
+            opacity: currentSlide === askIndex ? 1 : 0,
+            pointerEvents: currentSlide === askIndex ? "auto" : "none",
+          }}
+        >
+          <div className="flex flex-col items-center px-8 text-center">
             <p
-              className="animate-slide-up max-w-sm text-center text-lg font-light leading-relaxed opacity-0"
-              style={{ color: "#2d2d2d", animationDelay: "0.6s" }}
-            >
-              {SLIDES.reasons[reasonIndex].reason}
-            </p>
-
-            <p
-              className="animate-fade-in mt-4 text-xs tracking-widest uppercase opacity-0"
-              style={{ color: "#e8a0bf", animationDelay: "1.2s" }}
-            >
-              tap to continue
-            </p>
-          </div>
-        )}
-
-        {/* ASK SLIDE */}
-        {isAsk && (
-          <div
-            className={`flex flex-col items-center px-8 text-center ${showContent ? "animate-fade-in" : "animate-fade-out"}`}
-          >
-            <p
-              className="animate-fade-in mb-4 text-lg tracking-wide opacity-0"
-              style={{ color: "#e8a0bf", animationDelay: "0.3s" }}
+              className="mb-4 text-lg tracking-wide"
+              style={{ color: "#e8a0bf" }}
             >
               {SLIDES.ask.title}
             </p>
             <h1
-              className="animate-slide-up mb-16 text-4xl font-light leading-tight tracking-tight opacity-0 sm:text-5xl"
-              style={{ color: "#2d2d2d", animationDelay: "0.7s" }}
+              className="mb-16 text-4xl font-light leading-tight tracking-tight sm:text-5xl"
+              style={{ color: "#2d2d2d" }}
             >
               {SLIDES.ask.question}
             </h1>
-            <div
-              className="animate-scale-in flex gap-4 opacity-0"
-              style={{ animationDelay: "1.2s" }}
-            >
+            <div className="flex gap-4">
               <button
                 className="rounded-full px-12 py-4 text-lg font-medium tracking-wide text-white transition-transform hover:scale-105 active:scale-95"
                 style={{
@@ -310,24 +316,28 @@ export default function Home() {
               </p>
             )}
           </div>
-        )}
+        </div>
 
-        {/* FINALE SLIDE - Photo Collage */}
-        {isFinale && (
-          <div
-            className={`flex w-full flex-col items-center px-6 py-16 ${showContent ? "animate-fade-in" : ""}`}
-          >
-            <FloatingHearts />
+        {/* === FINALE SLIDE - Photo Collage === */}
+        <div
+          className="absolute inset-0 flex items-center justify-center overflow-y-auto transition-opacity duration-700 ease-in-out"
+          style={{
+            opacity: currentSlide === finaleIndex ? 1 : 0,
+            pointerEvents: currentSlide === finaleIndex ? "auto" : "none",
+          }}
+        >
+          <div className="flex w-full flex-col items-center px-6 py-16">
+            {currentSlide === finaleIndex && <FloatingHearts />}
 
             <h1
-              className="animate-slide-up mb-2 text-3xl font-light tracking-tight opacity-0 sm:text-4xl"
-              style={{ color: "#d4526e", animationDelay: "0.3s" }}
+              className="mb-2 text-3xl font-light tracking-tight sm:text-4xl"
+              style={{ color: "#d4526e" }}
             >
               {SLIDES.finale.title}
             </h1>
             <p
-              className="animate-fade-in mb-10 text-lg font-light opacity-0"
-              style={{ color: "#e8a0bf", animationDelay: "0.6s" }}
+              className="mb-10 text-lg font-light"
+              style={{ color: "#e8a0bf" }}
             >
               {SLIDES.finale.message}
             </p>
@@ -337,23 +347,21 @@ export default function Home() {
               {SLIDES.reasons.map((reason, i) => (
                 <div
                   key={i}
-                  className="animate-scale-in aspect-square overflow-hidden rounded-2xl opacity-0 shadow-md"
-                  style={{ animationDelay: `${0.8 + i * 0.2}s` }}
+                  className="relative aspect-square overflow-hidden rounded-2xl shadow-md"
                 >
-                  <img
+                  <Image
                     src={reason.photo}
                     alt=""
-                    className="h-full w-full object-cover"
+                    fill
+                    sizes="(max-width: 768px) 45vw, 200px"
+                    className="object-cover"
                     style={{ objectPosition: "center 20%" }}
                   />
                 </div>
               ))}
             </div>
 
-            <div
-              className="animate-fade-in mt-10 text-center opacity-0"
-              style={{ animationDelay: "1.6s" }}
-            >
+            <div className="mt-10 text-center">
               <p
                 className="text-4xl"
                 style={{ color: "#d4526e" }}
@@ -362,7 +370,7 @@ export default function Home() {
               </p>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </>
   );
